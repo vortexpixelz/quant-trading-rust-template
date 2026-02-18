@@ -161,7 +161,10 @@ impl PolymarketClient {
         let mut params = vec![
             ("asset_id".to_string(), asset_id.to_string()),
             ("startTs".to_string(), start_ts_ms.to_string()),
-            ("limit".to_string(), limit.unwrap_or(500).min(500).to_string()),
+            (
+                "limit".to_string(),
+                limit.unwrap_or(500).min(500).to_string(),
+            ),
         ];
 
         if let Some(end) = end_ts_ms {
@@ -199,17 +202,22 @@ impl PolymarketClient {
                 break;
             }
 
-            let last_ts: u64 = page
+            let page_len = page.data.len();
+            let Some(last_ts) = page
                 .data
                 .last()
-                .and_then(|r| r.timestamp.parse().ok())
-                .unwrap_or(0);
-
-            let page_len = page.data.len();
+                .and_then(|r| r.timestamp.parse::<u64>().ok())
+            else {
+                break;
+            };
             all_records.extend(page.data);
 
-            // Advance past last timestamp
-            current_start = last_ts + 1;
+            // Advance past last timestamp; stop if cursor cannot progress.
+            let next_start = last_ts.saturating_add(1);
+            if next_start <= current_start {
+                break;
+            }
+            current_start = next_start;
 
             if page_len < 500 {
                 break;

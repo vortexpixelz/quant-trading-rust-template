@@ -63,8 +63,7 @@ async fn main() -> anyhow::Result<()> {
     let mut book = OrderBook::new(token_id.clone());
     let mut signal_engine = SignalEngine::new(50); // 50-period lookback
     let strategy = MeanReversionStrategy::new(
-        0.02,  // entry threshold: 2% deviation from fair value
-        0.005, // exit threshold: 0.5% mean reversion
+        2.0,    // entry threshold: 2-sigma deviation from fair value
         1000.0, // max position size in USDC
     );
 

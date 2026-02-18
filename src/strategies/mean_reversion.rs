@@ -28,8 +28,6 @@ pub enum TradeDecision {
 pub struct MeanReversionStrategy {
     /// Z-score threshold to enter a position (e.g., 2.0 = 2 sigma).
     entry_threshold: f64,
-    /// Z-score threshold to exit (reversion target, e.g., 0.5).
-    exit_threshold: f64,
     /// Maximum position size in USDC.
     max_position: f64,
     /// VPIN threshold above which we skip entry (smart money guard).
@@ -39,10 +37,9 @@ pub struct MeanReversionStrategy {
 }
 
 impl MeanReversionStrategy {
-    pub fn new(entry_threshold: f64, exit_threshold: f64, max_position: f64) -> Self {
+    pub fn new(entry_threshold: f64, max_position: f64) -> Self {
         Self {
             entry_threshold,
-            exit_threshold,
             max_position,
             vpin_guard: 0.7,
             min_spread: 0.001,
@@ -123,12 +120,24 @@ mod tests {
             timestamp: "1000".into(),
             hash: "abc".into(),
             bids: vec![
-                PriceLevel { price: "0.50".into(), size: "1000".into() },
-                PriceLevel { price: "0.48".into(), size: "2000".into() },
+                PriceLevel {
+                    price: "0.50".into(),
+                    size: "1000".into(),
+                },
+                PriceLevel {
+                    price: "0.48".into(),
+                    size: "2000".into(),
+                },
             ],
             asks: vec![
-                PriceLevel { price: "0.52".into(), size: "1000".into() },
-                PriceLevel { price: "0.55".into(), size: "2000".into() },
+                PriceLevel {
+                    price: "0.52".into(),
+                    size: "1000".into(),
+                },
+                PriceLevel {
+                    price: "0.55".into(),
+                    size: "2000".into(),
+                },
             ],
             min_order_size: "5".into(),
             tick_size: "0.01".into(),
@@ -142,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_hold_when_zscore_normal() {
-        let strategy = MeanReversionStrategy::new(2.0, 0.5, 1000.0);
+        let strategy = MeanReversionStrategy::new(2.0, 1000.0);
         let signals = Signals {
             price_zscore: 0.5,
             spread_zscore: 0.0,
@@ -156,12 +165,15 @@ mod tests {
             ask_depth: 3000.0,
         };
         let book = make_book();
-        assert!(matches!(strategy.evaluate(&signals, &book), TradeDecision::Hold));
+        assert!(matches!(
+            strategy.evaluate(&signals, &book),
+            TradeDecision::Hold
+        ));
     }
 
     #[test]
     fn test_buy_when_price_low() {
-        let strategy = MeanReversionStrategy::new(2.0, 0.5, 1000.0);
+        let strategy = MeanReversionStrategy::new(2.0, 1000.0);
         let signals = Signals {
             price_zscore: -3.0,
             spread_zscore: 0.0,
@@ -175,12 +187,15 @@ mod tests {
             ask_depth: 3000.0,
         };
         let book = make_book();
-        assert!(matches!(strategy.evaluate(&signals, &book), TradeDecision::Buy { .. }));
+        assert!(matches!(
+            strategy.evaluate(&signals, &book),
+            TradeDecision::Buy { .. }
+        ));
     }
 
     #[test]
     fn test_hold_when_vpin_high() {
-        let strategy = MeanReversionStrategy::new(2.0, 0.5, 1000.0);
+        let strategy = MeanReversionStrategy::new(2.0, 1000.0);
         let signals = Signals {
             price_zscore: -3.0,
             spread_zscore: 0.0,
@@ -194,12 +209,15 @@ mod tests {
             ask_depth: 3000.0,
         };
         let book = make_book();
-        assert!(matches!(strategy.evaluate(&signals, &book), TradeDecision::Hold));
+        assert!(matches!(
+            strategy.evaluate(&signals, &book),
+            TradeDecision::Hold
+        ));
     }
 
     #[test]
     fn test_sell_when_price_high() {
-        let strategy = MeanReversionStrategy::new(2.0, 0.5, 1000.0);
+        let strategy = MeanReversionStrategy::new(2.0, 1000.0);
         let signals = Signals {
             price_zscore: 3.5,
             spread_zscore: 0.0,
@@ -213,6 +231,9 @@ mod tests {
             ask_depth: 3000.0,
         };
         let book = make_book();
-        assert!(matches!(strategy.evaluate(&signals, &book), TradeDecision::Sell { .. }));
+        assert!(matches!(
+            strategy.evaluate(&signals, &book),
+            TradeDecision::Sell { .. }
+        ));
     }
 }
