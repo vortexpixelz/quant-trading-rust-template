@@ -229,13 +229,34 @@ mod tests {
     #[test]
     fn test_vpin_balanced_flow() {
         let mut engine = SignalEngine::new(20);
-        // Symmetric depth changes — low VPIN
+        // Truly balanced flow: both bid and ask depths move in lockstep.
+        // When both sides change by the same amount, net_flow ≈ 0 → low VPIN.
         for i in 0..20 {
             let delta = if i % 2 == 0 { 50.0 } else { -50.0 };
-            engine.push(0.50, 0.02, 0.0, 1000.0 + delta, 1000.0 - delta);
+            engine.push(0.50, 0.02, 0.0, 1000.0 + delta, 1000.0 + delta);
         }
         let sigs = engine.compute().unwrap();
-        // VPIN should be moderate for oscillating flow
-        assert!(sigs.vpin < 0.9);
+        // Balanced depth changes produce near-zero net flow → low VPIN
+        assert!(
+            sigs.vpin < 0.1,
+            "VPIN should be near zero for balanced flow, got {}",
+            sigs.vpin
+        );
+    }
+
+    #[test]
+    fn test_vpin_toxic_flow() {
+        let mut engine = SignalEngine::new(20);
+        // Toxic flow: bid depth increases while ask depth decreases (aggressive buying).
+        // This creates high net_flow → high VPIN.
+        for i in 0..20 {
+            engine.push(0.50, 0.02, 0.0, 1000.0 + (i as f64) * 20.0, 1000.0 - (i as f64) * 20.0);
+        }
+        let sigs = engine.compute().unwrap();
+        assert!(
+            sigs.vpin > 0.5,
+            "VPIN should be high for toxic one-sided flow, got {}",
+            sigs.vpin
+        );
     }
 }
