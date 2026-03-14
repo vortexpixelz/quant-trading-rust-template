@@ -1,0 +1,51 @@
+[package]
+name = "quant-trading-polymarket"
+version = "0.1.0"
+edition = "2021"
+description = "Quantitative trading engine for Polymarket CLOB with smart money signal integration"
+license = "MIT"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client for CLOB API
+reqwest = { version = "0.12", features = ["json", "gzip"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Decimal arithmetic (critical for financial math)
+rust_decimal = { version = "1", features = ["serde-with-str"] }
+rust_decimal_macros = "1"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Config
+config = "0.14"
+dotenvy = "0.15"
+
+# Data structures
+dashmap = "6"          # concurrent hashmap for orderbook
+crossbeam-channel = "0.5"  # lock-free channels for signal pipeline
+
+# Statistics
+statrs = "0.17"        # statistical distributions & functions
+
+[dev-dependencies]
+tokio-test = "0.4"
+approx = "0.5"
+
+[[bin]]
+name = "polymarket-trader"
+path = "src/main.rs"
