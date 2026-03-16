@@ -50,8 +50,10 @@ impl OrderBook {
         self.asks = snap.asks.iter().map(Level::from_api).collect();
 
         // Ensure sorting: bids descending by price, asks ascending
-        self.bids.sort_by(|a, b| b.price.partial_cmp(&a.price).unwrap());
-        self.asks.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
+        self.bids
+            .sort_by(|a, b| b.price.partial_cmp(&a.price).unwrap());
+        self.asks
+            .sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
 
         self.last_update_ms = snap.timestamp.parse().unwrap_or(0);
         self.hash = snap.hash.clone();
@@ -113,6 +115,7 @@ impl OrderBook {
 
     /// Estimate price impact of a buy order of given size.
     /// Walks up the ask side of the book.
+    /// Returns +inf if the requested size cannot be fully filled.
     pub fn buy_impact(&self, size: f64) -> f64 {
         let mut remaining = size;
         let mut cost = 0.0;
@@ -126,10 +129,12 @@ impl OrderBook {
             remaining -= fill;
         }
 
-        if size > 0.0 {
-            cost / size
-        } else {
+        if size <= 0.0 {
             self.best_ask()
+        } else if remaining > 0.0 {
+            f64::INFINITY
+        } else {
+            cost / size
         }
     }
 
@@ -184,14 +189,32 @@ mod tests {
             timestamp: "1771321229354".to_string(),
             hash: "abc123".to_string(),
             bids: vec![
-                PriceLevel { price: "0.50".to_string(), size: "100".to_string() },
-                PriceLevel { price: "0.48".to_string(), size: "200".to_string() },
-                PriceLevel { price: "0.45".to_string(), size: "500".to_string() },
+                PriceLevel {
+                    price: "0.50".to_string(),
+                    size: "100".to_string(),
+                },
+                PriceLevel {
+                    price: "0.48".to_string(),
+                    size: "200".to_string(),
+                },
+                PriceLevel {
+                    price: "0.45".to_string(),
+                    size: "500".to_string(),
+                },
             ],
             asks: vec![
-                PriceLevel { price: "0.52".to_string(), size: "150".to_string() },
-                PriceLevel { price: "0.55".to_string(), size: "300".to_string() },
-                PriceLevel { price: "0.60".to_string(), size: "1000".to_string() },
+                PriceLevel {
+                    price: "0.52".to_string(),
+                    size: "150".to_string(),
+                },
+                PriceLevel {
+                    price: "0.55".to_string(),
+                    size: "300".to_string(),
+                },
+                PriceLevel {
+                    price: "0.60".to_string(),
+                    size: "1000".to_string(),
+                },
             ],
             min_order_size: "5".to_string(),
             tick_size: "0.01".to_string(),
@@ -241,6 +264,15 @@ mod tests {
         let impact = book.buy_impact(200.0);
         let expected = (150.0 * 0.52 + 50.0 * 0.55) / 200.0;
         assert!((impact - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_buy_impact_insufficient_depth() {
+        let mut book = OrderBook::new("test".to_string());
+        book.update_from_snapshot(&make_snapshot());
+        // Ask depth is 1450, so this cannot be fully filled.
+        let impact = book.buy_impact(2000.0);
+        assert!(impact.is_infinite());
     }
 
     #[test]
